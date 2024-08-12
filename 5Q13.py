@@ -59,23 +59,22 @@ def generate_certificate(name, selected_years, selected_categories, score, accur
         fig, ax = plt.subplots(figsize=(8.3, 5.8))  # A4の半分のサイズ
 
         # フォント設定（日本語対応）
-        font_path = "./msgothic.ttc"# 使用するフォントファイルのパス
+        font_path = "./msgothic.ttc" # 使用するフォントファイルのパス
         font_prop = fm.FontProperties(fname=font_path)
 
         ax.axis('off')
 
         text = (
-            "証明書\n\n"
-            f"氏名: {name}\n"
-            f"日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"問題の回数: {', '.join(selected_years)}\n"
-            f"分野: {', '.join(selected_categories)}\n"
-            f"スコア: {score}\n"
+            f"氏名: {name}\n\n"
+            f"日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"問題の回数: {', '.join(selected_years)}\n\n"
+            f"分野: {', '.join(selected_categories)}\n\n"
+            f"スコア: {score} / {len(selected_years) * len(selected_categories)}\n\n"
             f"正答率: {accuracy_rate:.2f}%"
         )
 
         ax.text(0.5, 0.9, "証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
-        ax.text(0.5, 0.5, text, fontsize=16, ha='center', va='center', fontproperties=font_prop)
+        ax.text(0.1, 0.5, text, fontsize=16, ha='left', va='top', fontproperties=font_prop, wrap=True)
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         file_name = f"証明書_{timestamp}.png"
@@ -206,7 +205,7 @@ def main():
                             if certificate_path:
                                 st.image(certificate_path)
 
-                                # ダウンロードリンクを提供
+                                # ダウンロードボタンの表示
                                 with open(certificate_path, "rb") as file:
                                     st.download_button(
                                         label="証明書をダウンロード",
