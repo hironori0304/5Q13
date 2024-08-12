@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import matplotlib.font_manager as fm
 import tempfile
+import os
 
 def load_quiz_data(file):
     """CSVファイルからクイズデータを読み込む関数"""
@@ -76,14 +77,16 @@ def generate_certificate(name, selected_years, selected_categories, score, accur
         ax.text(0.5, 0.9, "証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
         ax.text(0.5, 0.5, text, fontsize=16, ha='center', va='center', fontproperties=font_prop)
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_name = f"証明書_{timestamp}.png"
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png", prefix="certificate_")
         plt.savefig(temp_file.name, bbox_inches='tight', pad_inches=1)
         plt.close(fig)
 
-        return temp_file.name
+        return temp_file.name, file_name
     except Exception as e:
         st.error(f"証明書の生成に失敗しました: {e}")
-        return None
+        return None, None
 
 def main():
     st.title("国家試験対策アプリ")
@@ -193,7 +196,7 @@ def main():
 
                     if st.session_state.name:
                         if st.button("証明書を発行"):
-                            certificate_path = generate_certificate(
+                            certificate_path, file_name = generate_certificate(
                                 st.session_state.name,
                                 selected_years,
                                 selected_categories,
@@ -202,8 +205,18 @@ def main():
                             )
                             if certificate_path:
                                 st.image(certificate_path)
-            else:
-                st.warning("過去問の回数と分野を選択してください")
+
+                                # ダウンロードリンクを提供
+                                with open(certificate_path, "rb") as file:
+                                    st.download_button(
+                                        label="証明書をダウンロード",
+                                        data=file,
+                                        file_name=file_name,
+                                        mime="image/png"
+                                    )
+
+                                # 一時ファイルを削除
+                                os.remove(certificate_path)
 
 if __name__ == "__main__":
     main()
