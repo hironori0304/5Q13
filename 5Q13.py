@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import matplotlib.font_manager as fm
 import tempfile
+import pytz  # タイムゾーン管理のためのライブラリ
 
+# クイズデータの読み込み
 def load_quiz_data(file):
     """CSVファイルからクイズデータを読み込む関数"""
     try:
@@ -17,6 +19,7 @@ def load_quiz_data(file):
         st.error(f"ファイルの読み込みに失敗しました: {e}")
         return None
 
+# データのフィルタリングとソート
 def filter_and_sort_quiz_data(df, selected_years, selected_categories):
     """選択された過去問の回数と分野に基づいてデータをフィルタリングし、ソートする関数"""
     try:
@@ -52,30 +55,35 @@ def filter_and_sort_quiz_data(df, selected_years, selected_categories):
         st.error(f"データのフィルタリングとソートに失敗しました: {e}")
         return []
 
-def generate_certificate(name, selected_years, selected_categories, score, accuracy_rate):
+# 証明書の生成
+def generate_certificate(name, selected_years, selected_categories, correct_answers_count, total_questions):
     """証明書を生成する関数"""
     try:
         fig, ax = plt.subplots(figsize=(8.3, 5.8))  # A4の半分のサイズ
 
         # フォント設定（日本語対応）
-        font_path = "./msgothic.ttc" # 使用するフォントファイルのパス
+        font_path = "./msgothic.ttc"  # 使用するフォントファイルのパス
         font_prop = fm.FontProperties(fname=font_path)
+
+        # 日本時間 (Tokyo) に設定
+        jst = pytz.timezone('Asia/Tokyo')
+        current_time = datetime.now(jst)  # JSTで現在の日時を取得
 
         ax.axis('off')
 
         text = (
             f"氏名: {name}\n\n"
-            f"日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"日時: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
             f"問題の回数: {', '.join(selected_years)}\n\n"
             f"分野: {', '.join(selected_categories)}\n\n"
-            f"スコア: {score} / {len(selected_years) * len(selected_categories)}\n\n"
-            f"正答率: {accuracy_rate:.2f}%"
+            f"正答数: {correct_answers_count} / {total_questions}\n\n"
+            f"スコア: {correct_answers_count / total_questions * 100:.2f}%"
         )
 
         ax.text(0.5, 0.9, "証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
         ax.text(0.1, 0.5, text, fontsize=16, ha='left', va='top', fontproperties=font_prop, wrap=True)
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = current_time.strftime('%Y%m%d_%H%M%S')
         file_name = f"証明書_{timestamp}.png"
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png", prefix="certificate_")
         plt.savefig(temp_file.name, bbox_inches='tight', pad_inches=1)
@@ -108,92 +116,66 @@ def main():
         st.session_state.name = ""
     if "show_result" not in st.session_state:
         st.session_state.show_result = False
-    if "score" not in st.session_state:
-        st.session_state.score = 0
-    if "accuracy_rate" not in st.session_state:
-        st.session_state.accuracy_rate = 0
+    if "correct_answers_count" not in st.session_state:
+        st.session_state.correct_answers_count = 0
+    if "total_questions" not in st.session_state:
+        st.session_state.total_questions = 0
 
-    # 問題データのアップロード
-    uploaded_file = st.file_uploader("問題データのCSVファイルをアップロードしてください", type="csv")
+    # クイズデータのアップロード
+    uploaded_file = st.file_uploader("クイズデータのCSVファイルをアップロード", type="csv")
     if uploaded_file is not None:
         df = load_quiz_data(uploaded_file)
         if df is not None:
-            years = df['year'].unique().tolist()
-            categories = df['category'].unique().tolist()
+            st.session_state.quiz_data = filter_and_sort_quiz_data(df, ["すべて"], ["すべて"])
+            st.session_state.current_quiz_data = st.session_state.quiz_data
+            st.session_state.total_questions = len(st.session_state.quiz_data)
 
-            years.insert(0, "すべて")
-            categories.insert(0, "すべて")
+    # クイズの表示と回答の処理
+    if st.session_state.current_quiz_data:
+        quiz = st.session_state.current_quiz_data[0]  # 最初の問題を表示
 
-            # 過去問の回数と分野の選択
-            selected_years = st.multiselect("過去問の回数を選択してください", years)
-            selected_categories = st.multiselect("分野を選択してください", categories)
+        question = quiz["question"]
+        options = quiz["options"]
+        correct_option = quiz["correct_option"]
 
-            if selected_years and selected_categories:
-                st.session_state.quiz_data = filter_and_sort_quiz_data(df, selected_years, selected_categories)
-                st.session_state.current_quiz_data = st.session_state.quiz_data.copy()
-                st.session_state.answers = {quiz["question"]: None for quiz in st.session_state.current_quiz_data}
+        st.write(question)
+        selected_option = st.radio("選択肢:", options)
 
-                if st.session_state.current_quiz_data:
-                    # 問題の表示
-                    for i, quiz in enumerate(st.session_state.current_quiz_data):
-                        question_number = i + 1
-                        is_highlighted = question_number in st.session_state.highlighted_questions
-                        highlight_style = "background-color: #ffcccc;" if is_highlighted else ""
+        if st.button("回答"):
+            if selected_option == correct_option:
+                st.success("正解です！")
+                st.session_state.correct_answers_count += 1
+            else:
+                st.error("不正解です。")
+                st.session_state.incorrect_data.append(quiz)
 
-                        st.markdown(f"**<div style='padding: 10px; {highlight_style} font-size: 16px;'>問題 {question_number}</div>**", unsafe_allow_html=True)
-                        st.markdown(f"<p style='margin-bottom: 0; font-size: 16px;'>{quiz['question']}</p>", unsafe_allow_html=True)
+            st.session_state.current_quiz_data.pop(0)  # 次の問題に移る
+            if not st.session_state.current_quiz_data:
+                st.session_state.show_result = True
 
-                        if question_number not in st.session_state.shuffled_options:
-                            st.session_state.shuffled_options[question_number] = quiz["options"]
-                        
-                        selected_option = st.radio(f"選択肢 {question_number}", st.session_state.shuffled_options[question_number], index=0, key=f"question_{question_number}")
-                        st.session_state.answers[quiz["question"]] = selected_option
+    # 結果の表示と証明書の生成
+    if st.session_state.show_result:
+        st.write(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
+        st.write(f"スコア: {st.session_state.correct_answers_count / st.session_state.total_questions * 100:.2f}%")
 
-                    # 提出ボタン
-                    if st.button("解答を提出"):
-                        st.session_state.submit_count += 1
-                        st.session_state.score = 0
-                        st.session_state.incorrect_data = []
-
-                        for quiz in st.session_state.current_quiz_data:
-                            correct_answer = quiz["correct_option"]
-                            selected_answer = st.session_state.answers[quiz["question"]]
-                            if correct_answer == selected_answer:
-                                st.session_state.score += 1
-                            else:
-                                st.session_state.incorrect_data.append(quiz)
-
-                        st.session_state.accuracy_rate = (st.session_state.score / len(st.session_state.current_quiz_data)) * 100
-                        st.session_state.show_result = True
-
-                    # 結果の表示
-                    if st.session_state.show_result:
-                        st.subheader("結果")
-                        st.write(f"スコア: {st.session_state.score} / {len(st.session_state.current_quiz_data)}")
-                        st.write(f"正答率: {st.session_state.accuracy_rate:.2f}%")
-
-                        if st.session_state.incorrect_data:
-                            st.write("不正解の問題:")
-                            for i, quiz in enumerate(st.session_state.incorrect_data):
-                                st.markdown(f"**問題 {i+1}:** {quiz['question']}")
-                                st.markdown(f"正解: {quiz['correct_option']}")
-                                st.markdown(f"選択肢: {', '.join(quiz['options'])}")
-
-                        # 証明書の生成
-                        st.session_state.name = st.text_input("氏名を入力してください")
-                        if st.session_state.name:
-                            cert_file, cert_name = generate_certificate(
-                                st.session_state.name, selected_years, selected_categories,
-                                st.session_state.score, st.session_state.accuracy_rate
-                            )
-                            if cert_file:
-                                with open(cert_file, "rb") as file:
-                                    st.download_button(
-                                        label="証明書をダウンロード",
-                                        data=file,
-                                        file_name=cert_name,
-                                        mime="image/png"
-                                    )
+        if st.button("証明書を生成"):
+            name = st.text_input("氏名を入力してください")
+            if name:
+                temp_file_path, file_name = generate_certificate(
+                    name,
+                    ["すべて"],
+                    ["すべて"],
+                    st.session_state.correct_answers_count,
+                    st.session_state.total_questions
+                )
+                if temp_file_path:
+                    with open(temp_file_path, "rb") as file:
+                        st.download_button(
+                            label="証明書をダウンロード",
+                            data=file,
+                            file_name=file_name,
+                            mime="image/png"
+                        )
 
 if __name__ == "__main__":
     main()
