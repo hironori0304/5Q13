@@ -130,6 +130,21 @@ def main():
             st.session_state.current_quiz_data = st.session_state.quiz_data
             st.session_state.total_questions = len(st.session_state.quiz_data)
 
+    # クイズの選択
+    if st.session_state.quiz_data:
+        with st.form(key='quiz_selection'):
+            years = list(df['year'].unique())
+            categories = list(df['category'].unique())
+
+            selected_years = st.multiselect("過去問の回数を選択", options=["すべて"] + years, default=["すべて"])
+            selected_categories = st.multiselect("分野を選択", options=["すべて"] + categories, default=["すべて"])
+
+            submit_button = st.form_submit_button("選択")
+
+            if submit_button:
+                st.session_state.current_quiz_data = filter_and_sort_quiz_data(df, selected_years, selected_categories)
+                st.session_state.total_questions = len(st.session_state.current_quiz_data)
+
     # クイズの表示と回答の処理
     if st.session_state.current_quiz_data:
         quiz = st.session_state.current_quiz_data[0]  # 最初の問題を表示
