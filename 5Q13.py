@@ -55,9 +55,9 @@ def filter_and_sort_quiz_data(df, selected_years, selected_categories):
         st.error(f"データのフィルタリングとソートに失敗しました: {e}")
         return []
 
-# 証明書の生成
+# 成績証明書の生成
 def generate_certificate(name, selected_years, selected_categories, correct_answers_count, total_questions):
-    """証明書を生成する関数"""
+    """成績証明書を生成する関数"""
     try:
         fig, ax = plt.subplots(figsize=(8.3, 5.8))  # A4の半分のサイズ
 
@@ -73,26 +73,25 @@ def generate_certificate(name, selected_years, selected_categories, correct_answ
 
         text = (
             f"氏名: {name}\n\n"
-            f"日時: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"実施日時: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
             f"選択した問題: {', '.join(selected_years)}\n\n"
             f"選択した分野: {', '.join(selected_categories)}\n\n"
             f"正答数: {correct_answers_count} / {total_questions}\n\n"
-            f"スコア: {correct_answers_count} / {total_questions}\n\n"
             f"正答率: {correct_answers_count / total_questions * 100:.2f}%"
         )
 
-        ax.text(0.5, 0.9, "証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
+        ax.text(0.5, 0.9, "成績証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
         ax.text(0.1, 0.5, text, fontsize=16, ha='left', va='top', fontproperties=font_prop, wrap=True)
 
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
-        file_name = f"証明書_{timestamp}.png"
+        file_name = f"成績証明書_{timestamp}.png"
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png", prefix="certificate_")
         plt.savefig(temp_file.name, bbox_inches='tight', pad_inches=1)
         plt.close(fig)
 
         return temp_file.name, file_name
     except Exception as e:
-        st.error(f"証明書の生成に失敗しました: {e}")
+        st.error(f"成績証明書の生成に失敗しました: {e}")
         return None, None
 
 def main():
@@ -147,81 +146,116 @@ def main():
                 if st.session_state.current_quiz_data:
                     # 問題の表示
                     for i, quiz in enumerate(st.session_state.current_quiz_data):
-                        question_number = i + 1
-                        is_highlighted = question_number in st.session_state.highlighted_questions
-                        highlight_style = "background-color: #ffcccc;" if is_highlighted else ""
+                        st.write(f"**問題 {i+1}:** {quiz['question']}")
 
-                        st.markdown(f"**<div style='padding: 10px; {highlight_style} font-size: 16px;'>問題 {question_number}</div>**", unsafe_allow_html=True)
-                        st.markdown(f"<p style='margin-bottom: 0; font-size: 16px;'>{quiz['question']}</p>", unsafe_allow_html=True)
-
-                        if quiz["question"] not in st.session_state.shuffled_options:
-                            st.session_state.shuffled_options[quiz["question"]] = quiz["options"]
-                        
-                        options = st.session_state.shuffled_options[quiz["question"]]
-
+                        options = quiz["options"]
                         selected_option = st.radio(
-                            "",
-                            options=options,
-                            index=st.session_state.answers.get(quiz["question"], None),
-                            key=f"question_{i}_radio"
-                        )
+                            f"選択肢を選んでください:", options, key=f"question_{i}")
 
-                        if selected_option is not None:
-                            st.session_state.answers[quiz["question"]] = selected_option
+                        # 選択された解答をセッションに保存
+                        if selected_option:
+                            st.session_state.answers[quiz['question']] = selected_option
 
-                        st.write("")  # 次の問題との間にスペースを追加
+                    # 氏名の入力
+                    name = st.text_input("氏名を入力してください", st.session_state.name)
 
-                    # 回答ボタン
-                    if st.button("回答"):
-                        score = 0
-                        total_questions = len(st.session_state.quiz_data)
-                        incorrect_data = []
-                        for i, quiz in enumerate(st.session_state.current_quiz_data):
-                            correct_option = quiz["correct_option"]
-                            selected_option = st.session_state.answers.get(quiz["question"], None)
+                    # 解答の提出ボタン
+                    if st.button("解答を提出する"):
+                        if name:
+                            st.session_state.name = name
+                            st.session_state.submit_count += 1
+                            st.session_state.correct_answers_count = 0
+                            st.session_state.total_questions = len(st.session_state.current_quiz_data)
 
-                            is_correct = correct_option == selected_option
+                            incorrect_questions = []
 
-                            if is_correct:
-                                score += 1
-                                st.session_state.highlighted_questions.discard(i + 1)
-                            else:
-                                incorrect_data.append(quiz)
-                                st.session_state.highlighted_questions.add(i + 1)
+                            for i, quiz in enumerate(st.session_state.current_quiz_data):
+                                selected_option = st.session_state.answers[quiz['question']]
+                                correct_option = quiz["correct_option"]
 
-                        accuracy_rate = (score / total_questions) * 100
-                        st.session_state.correct_answers_count = score
-                        st.session_state.total_questions = total_questions
+                                if selected_option == correct_option:
+                                    st.session_state.correct_answers_count += 1
+                                else:
+                                    incorrect_questions.append(quiz)
 
-                        st.write(f"あなたのスコア: {score} / {total_questions}")
-                        st.write(f"正答率: {accuracy_rate:.2f}%")
-                        st.session_state.incorrect_data = incorrect_data
-                        st.session_state.show_result = True
+                            st.session_state.incorrect_data = incorrect_questions
+                            st.session_state.show_result = True
 
-            # 名前の入力
-            if st.session_state.show_result:
-                st.text_input("お名前を入力してください:", key="name_input")
-                st.session_state.name = st.session_state.name
+                            # 成績証明書の生成
+                            cert_path, cert_file_name = generate_certificate(
+                                name, selected_years, selected_categories,
+                                st.session_state.correct_answers_count, st.session_state.total_questions)
 
-                # 証明書の生成ボタン
-                if st.button("証明書を生成する"):
-                    certificate_path, file_name = generate_certificate(
-                        st.session_state.name,
-                        selected_years,
-                        selected_categories,
-                        st.session_state.correct_answers_count,
-                        st.session_state.total_questions
-                    )
-                    if certificate_path:
-                        st.session_state.certificate_path = certificate_path
-                        st.write("証明書が生成されました。")
-                        st.image(certificate_path, use_column_width=True)
-                        st.download_button(
-                            label="証明書をダウンロード",
-                            data=open(certificate_path, "rb").read(),
-                            file_name=file_name,
-                            mime="image/png"
-                        )
+                            if cert_path:
+                                st.session_state.certificate_path = cert_path
+                                st.success(f"成績証明書が生成されました: {cert_file_name}")
+                                with open(cert_path, "rb") as file:
+                                    st.download_button(label="成績証明書をダウンロード", data=file, file_name=cert_file_name, mime="image/png")
+                        else:
+                            st.error("氏名を入力してください。")
+
+                # 解答結果の表示
+                if st.session_state.show_result:
+                    st.write(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
+                   
+                st.session_state.current_quiz_data = st.session_state.quiz_data.copy()
+                st.session_state.answers = {quiz["question"]: None for quiz in st.session_state.current_quiz_data}
+
+                if st.session_state.current_quiz_data:
+                    # 氏名の入力
+                    st.session_state.name = st.text_input("氏名を入力してください")
+
+                    if st.session_state.name:
+                        for idx, quiz in enumerate(st.session_state.current_quiz_data):
+                            st.write(f"問題 {idx + 1}: {quiz['question']}")
+                            options = quiz["options"]
+
+                            # 選択肢をラジオボタンとして表示
+                            st.session_state.answers[quiz["question"]] = st.radio(
+                                f"選択肢 {idx + 1}",
+                                options,
+                                index=options.index(st.session_state.answers[quiz["question"]]) if st.session_state.answers[quiz["question"]] else 0,
+                                key=f"radio_{idx}"
+                            )
+
+                        # 回答ボタン
+                        if st.button("回答"):
+                            st.session_state.correct_answers_count = 0
+                            st.session_state.total_questions = len(st.session_state.current_quiz_data)
+
+                            for quiz in st.session_state.current_quiz_data:
+                                selected_answer = st.session_state.answers[quiz["question"]]
+                                correct_answer = quiz["correct_option"]
+
+                                if selected_answer == correct_answer:
+                                    st.session_state.correct_answers_count += 1
+                                else:
+                                    st.session_state.incorrect_data.append(quiz)
+
+                            # 成績証明書の生成
+                            certificate_path, file_name = generate_certificate(
+                                st.session_state.name,
+                                selected_years,
+                                selected_categories,
+                                st.session_state.correct_answers_count,
+                                st.session_state.total_questions
+                            )
+                            st.session_state.certificate_path = certificate_path
+
+                            # 結果表示
+                            st.success(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
+                            st.success(f"正答率: {st.session_state.correct_answers_count / st.session_state.total_questions * 100:.2f}%")
+
+                            if certificate_path:
+                                with open(certificate_path, "rb") as file:
+                                    btn = st.download_button(
+                                        label="成績証明書をダウンロード",
+                                        data=file,
+                                        file_name=file_name,
+                                        mime="image/png"
+                                    )
+                        else:
+                            st.session_state.show_result = False
 
 if __name__ == "__main__":
     main()
