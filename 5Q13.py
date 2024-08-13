@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import matplotlib.font_manager as fm
 import tempfile
-import os
 
 def load_quiz_data(file):
     """CSVファイルからクイズデータを読み込む関数"""
@@ -144,78 +143,57 @@ def main():
                         st.markdown(f"**<div style='padding: 10px; {highlight_style} font-size: 16px;'>問題 {question_number}</div>**", unsafe_allow_html=True)
                         st.markdown(f"<p style='margin-bottom: 0; font-size: 16px;'>{quiz['question']}</p>", unsafe_allow_html=True)
 
-                        if quiz["question"] not in st.session_state.shuffled_options:
-                            st.session_state.shuffled_options[quiz["question"]] = quiz["options"]
+                        if question_number not in st.session_state.shuffled_options:
+                            st.session_state.shuffled_options[question_number] = quiz["options"]
                         
-                        options = st.session_state.shuffled_options[quiz["question"]]
+                        selected_option = st.radio(f"選択肢 {question_number}", st.session_state.shuffled_options[question_number], index=0, key=f"question_{question_number}")
+                        st.session_state.answers[quiz["question"]] = selected_option
 
-                        selected_option = st.radio(
-                            "",
-                            options=options,
-                            index=st.session_state.answers.get(quiz["question"], None),
-                            key=f"question_{i}_radio"
-                        )
+                    # 提出ボタン
+                    if st.button("解答を提出"):
+                        st.session_state.submit_count += 1
+                        st.session_state.score = 0
+                        st.session_state.incorrect_data = []
 
-                        if selected_option is not None:
-                            st.session_state.answers[quiz["question"]] = selected_option
-
-                        st.write("")  # 次の問題との間にスペースを追加
-
-                    # 回答ボタン
-                    if st.button("回答"):
-                        score = 0
-                        total_questions = len(st.session_state.quiz_data)
-                        incorrect_data = []
-                        for i, quiz in enumerate(st.session_state.current_quiz_data):
-                            correct_option = quiz["correct_option"]
-                            selected_option = st.session_state.answers.get(quiz["question"], None)
-
-                            is_correct = correct_option == selected_option
-
-                            if is_correct:
-                                score += 1
-                                st.session_state.highlighted_questions.discard(i + 1)
+                        for quiz in st.session_state.current_quiz_data:
+                            correct_answer = quiz["correct_option"]
+                            selected_answer = st.session_state.answers[quiz["question"]]
+                            if correct_answer == selected_answer:
+                                st.session_state.score += 1
                             else:
-                                incorrect_data.append(quiz)
-                                st.session_state.highlighted_questions.add(i + 1)
+                                st.session_state.incorrect_data.append(quiz)
 
-                        accuracy_rate = (score / total_questions) * 100
-                        st.session_state.score = score
-                        st.session_state.accuracy_rate = accuracy_rate
-
-                        st.write(f"あなたのスコア: {score} / {total_questions}")
-                        st.write(f"正答率: {accuracy_rate:.2f}%")
-
-                        # 結果を表示するフラグを立てる
+                        st.session_state.accuracy_rate = (st.session_state.score / len(st.session_state.current_quiz_data)) * 100
                         st.session_state.show_result = True
 
-                if st.session_state.show_result:
-                    # 氏名の入力フィールドと証明書発行ボタンを表示
-                    st.session_state.name = st.text_input("氏名を入力してください", value=st.session_state.name)
+                    # 結果の表示
+                    if st.session_state.show_result:
+                        st.subheader("結果")
+                        st.write(f"スコア: {st.session_state.score} / {len(st.session_state.current_quiz_data)}")
+                        st.write(f"正答率: {st.session_state.accuracy_rate:.2f}%")
 
-                    if st.session_state.name:
-                        if st.button("証明書を発行"):
-                            certificate_path, file_name = generate_certificate(
-                                st.session_state.name,
-                                selected_years,
-                                selected_categories,
-                                st.session_state.score,
-                                st.session_state.accuracy_rate
+                        if st.session_state.incorrect_data:
+                            st.write("不正解の問題:")
+                            for i, quiz in enumerate(st.session_state.incorrect_data):
+                                st.markdown(f"**問題 {i+1}:** {quiz['question']}")
+                                st.markdown(f"正解: {quiz['correct_option']}")
+                                st.markdown(f"選択肢: {', '.join(quiz['options'])}")
+
+                        # 証明書の生成
+                        st.session_state.name = st.text_input("氏名を入力してください")
+                        if st.session_state.name:
+                            cert_file, cert_name = generate_certificate(
+                                st.session_state.name, selected_years, selected_categories,
+                                st.session_state.score, st.session_state.accuracy_rate
                             )
-                            if certificate_path:
-                                st.image(certificate_path)
-
-                                # ダウンロードボタンの表示
-                                with open(certificate_path, "rb") as file:
+                            if cert_file:
+                                with open(cert_file, "rb") as file:
                                     st.download_button(
                                         label="証明書をダウンロード",
                                         data=file,
-                                        file_name=file_name,
+                                        file_name=cert_name,
                                         mime="image/png"
                                     )
-
-                                # 一時ファイルを削除
-                                os.remove(certificate_path)
 
 if __name__ == "__main__":
     main()
