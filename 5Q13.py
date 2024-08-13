@@ -74,10 +74,11 @@ def generate_certificate(name, selected_years, selected_categories, correct_answ
         text = (
             f"氏名: {name}\n\n"
             f"日時: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-            f"問題の回数: {', '.join(selected_years)}\n\n"
+            f"選択した問題: {', '.join(selected_years)}\n\n"
             f"分野: {', '.join(selected_categories)}\n\n"
             f"正答数: {correct_answers_count} / {total_questions}\n\n"
-            f"スコア: {correct_answers_count / total_questions * 100:.2f}%"
+            f"スコア: {correct_answers_count} / {total_questions}\n\n"
+            f"正答率: {correct_answers_count / total_questions * 100:.2f}%"
         )
 
         ax.text(0.5, 0.9, "証明書", fontsize=24, ha='center', va='center', fontproperties=font_prop, weight='bold')
@@ -121,7 +122,7 @@ def main():
     if "total_questions" not in st.session_state:
         st.session_state.total_questions = 0
 
-   # 問題データのアップロード
+    # 問題データのアップロード
     uploaded_file = st.file_uploader("問題データのCSVファイルをアップロードしてください", type="csv")
     if uploaded_file is not None:
         df = load_quiz_data(uploaded_file)
@@ -187,8 +188,8 @@ def main():
                                 st.session_state.highlighted_questions.add(i + 1)
 
                         accuracy_rate = (score / total_questions) * 100
-                        st.session_state.score = score
-                        st.session_state.accuracy_rate = accuracy_rate
+                        st.session_state.correct_answers_count = score
+                        st.session_state.total_questions = total_questions
 
                         st.write(f"あなたのスコア: {score} / {total_questions}")
                         st.write(f"正答率: {accuracy_rate:.2f}%")
@@ -197,29 +198,24 @@ def main():
                         st.session_state.show_result = True
                         
         if st.session_state.show_result:
-                    # 氏名の入力フィールドと証明書発行ボタンを表示
-                    st.session_state.name = st.text_input("氏名を入力してください", value=st.session_state.name)
-
-      
-        if st.button("証明書を発行"):
-                            certificate_path, file_name = generate_certificate(
-                                st.session_state.name,
-                                selected_years,
-                                selected_categories,
-                                st.session_state.score,
-                                st.session_state.accuracy_rate
-                            )
-                            if certificate_path:
-                                st.image(certificate_path)
-
-                                # ダウンロードボタンの表示
-                                with open(certificate_path, "rb") as file:
-                                    st.download_button(
-                                        label="証明書をダウンロード",
-                                        data=file,
-                                        file_name=file_name,
-                                        mime="image/png"
-                                    )
+            # 氏名の入力フィールドと証明書生成ボタン
+            st.session_state.name = st.text_input("氏名を入力してください", st.session_state.name)
+            if st.session_state.name and st.session_state.correct_answers_count > 0:
+                if st.button("証明書を生成"):
+                    file_path, file_name = generate_certificate(
+                        st.session_state.name,
+                        selected_years,
+                        selected_categories,
+                        st.session_state.correct_answers_count,
+                        st.session_state.total_questions
+                    )
+                    if file_path:
+                        st.download_button(
+                            label="証明書をダウンロード",
+                            data=open(file_path, "rb").read(),
+                            file_name=file_name,
+                            mime="image/png"
+                        )
 
 if __name__ == "__main__":
     main()
