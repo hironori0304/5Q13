@@ -200,24 +200,26 @@ def main():
                     # 氏名の入力フィールドと証明書発行ボタンを表示
                     st.session_state.name = st.text_input("氏名を入力してください", value=st.session_state.name)
 
-        if st.button("証明書を生成"):
-            name = st.text_input("氏名を入力してください")
-            if name:
-                temp_file_path, file_name = generate_certificate(
-                    name,
-                    ["すべて"],
-                    ["すべて"],
-                    st.session_state.correct_answers_count,
-                    st.session_state.total_questions
-                )
-                if temp_file_path:
-                    with open(temp_file_path, "rb") as file:
-                        st.download_button(
-                            label="証明書をダウンロード",
-                            data=file,
-                            file_name=file_name,
-                            mime="image/png"
-                        )
+      
+        if st.button("証明書を発行"):
+                            certificate_path, file_name = generate_certificate(
+                                st.session_state.name,
+                                selected_years,
+                                selected_categories,
+                                st.session_state.score,
+                                st.session_state.accuracy_rate
+                            )
+                            if certificate_path:
+                                st.image(certificate_path)
+
+                                # ダウンロードボタンの表示
+                                with open(certificate_path, "rb") as file:
+                                    st.download_button(
+                                        label="証明書をダウンロード",
+                                        data=file,
+                                        file_name=file_name,
+                                        mime="image/png"
+                                    )
 
 if __name__ == "__main__":
     main()
