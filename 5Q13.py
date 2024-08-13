@@ -121,57 +121,84 @@ def main():
     if "total_questions" not in st.session_state:
         st.session_state.total_questions = 0
 
-    # クイズデータのアップロード
-    uploaded_file = st.file_uploader("クイズデータのCSVファイルをアップロード", type="csv")
+   # 問題データのアップロード
+    uploaded_file = st.file_uploader("問題データのCSVファイルをアップロードしてください", type="csv")
     if uploaded_file is not None:
         df = load_quiz_data(uploaded_file)
         if df is not None:
-            st.session_state.quiz_data = filter_and_sort_quiz_data(df, ["すべて"], ["すべて"])
-            st.session_state.current_quiz_data = st.session_state.quiz_data
-            st.session_state.total_questions = len(st.session_state.quiz_data)
+            years = df['year'].unique().tolist()
+            categories = df['category'].unique().tolist()
 
-    # クイズの選択
-    if st.session_state.quiz_data:
-        with st.form(key='quiz_selection'):
-            years = list(df['year'].unique())
-            categories = list(df['category'].unique())
+            years.insert(0, "すべて")
+            categories.insert(0, "すべて")
 
-            selected_years = st.multiselect("過去問の回数を選択", options=["すべて"] + years, default=["すべて"])
-            selected_categories = st.multiselect("分野を選択", options=["すべて"] + categories, default=["すべて"])
+            # 過去問の回数と分野の選択
+            selected_years = st.multiselect("過去問の回数を選択してください", years)
+            selected_categories = st.multiselect("分野を選択してください", categories)
 
-            submit_button = st.form_submit_button("選択")
+            if selected_years and selected_categories:
+                st.session_state.quiz_data = filter_and_sort_quiz_data(df, selected_years, selected_categories)
+                st.session_state.current_quiz_data = st.session_state.quiz_data.copy()
+                st.session_state.answers = {quiz["question"]: None for quiz in st.session_state.current_quiz_data}
 
-            if submit_button:
-                st.session_state.current_quiz_data = filter_and_sort_quiz_data(df, selected_years, selected_categories)
-                st.session_state.total_questions = len(st.session_state.current_quiz_data)
+                if st.session_state.current_quiz_data:
+                    # 問題の表示
+                    for i, quiz in enumerate(st.session_state.current_quiz_data):
+                        question_number = i + 1
+                        is_highlighted = question_number in st.session_state.highlighted_questions
+                        highlight_style = "background-color: #ffcccc;" if is_highlighted else ""
 
-    # クイズの表示と回答の処理
-    if st.session_state.current_quiz_data:
-        quiz = st.session_state.current_quiz_data[0]  # 最初の問題を表示
+                        st.markdown(f"**<div style='padding: 10px; {highlight_style} font-size: 16px;'>問題 {question_number}</div>**", unsafe_allow_html=True)
+                        st.markdown(f"<p style='margin-bottom: 0; font-size: 16px;'>{quiz['question']}</p>", unsafe_allow_html=True)
 
-        question = quiz["question"]
-        options = quiz["options"]
-        correct_option = quiz["correct_option"]
+                        if quiz["question"] not in st.session_state.shuffled_options:
+                            st.session_state.shuffled_options[quiz["question"]] = quiz["options"]
+                        
+                        options = st.session_state.shuffled_options[quiz["question"]]
 
-        st.write(question)
-        selected_option = st.radio("選択肢:", options)
+                        selected_option = st.radio(
+                            "",
+                            options=options,
+                            index=st.session_state.answers.get(quiz["question"], None),
+                            key=f"question_{i}_radio"
+                        )
 
-        if st.button("回答"):
-            if selected_option == correct_option:
-                st.success("正解です！")
-                st.session_state.correct_answers_count += 1
-            else:
-                st.error("不正解です。")
-                st.session_state.incorrect_data.append(quiz)
+                        if selected_option is not None:
+                            st.session_state.answers[quiz["question"]] = selected_option
 
-            st.session_state.current_quiz_data.pop(0)  # 次の問題に移る
-            if not st.session_state.current_quiz_data:
-                st.session_state.show_result = True
+                        st.write("")  # 次の問題との間にスペースを追加
 
-    # 結果の表示と証明書の生成
-    if st.session_state.show_result:
-        st.write(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
-        st.write(f"スコア: {st.session_state.correct_answers_count / st.session_state.total_questions * 100:.2f}%")
+                    # 回答ボタン
+                    if st.button("回答"):
+                        score = 0
+                        total_questions = len(st.session_state.quiz_data)
+                        incorrect_data = []
+                        for i, quiz in enumerate(st.session_state.current_quiz_data):
+                            correct_option = quiz["correct_option"]
+                            selected_option = st.session_state.answers.get(quiz["question"], None)
+
+                            is_correct = correct_option == selected_option
+
+                            if is_correct:
+                                score += 1
+                                st.session_state.highlighted_questions.discard(i + 1)
+                            else:
+                                incorrect_data.append(quiz)
+                                st.session_state.highlighted_questions.add(i + 1)
+
+                        accuracy_rate = (score / total_questions) * 100
+                        st.session_state.score = score
+                        st.session_state.accuracy_rate = accuracy_rate
+
+                        st.write(f"あなたのスコア: {score} / {total_questions}")
+                        st.write(f"正答率: {accuracy_rate:.2f}%")
+
+                        # 結果を表示するフラグを立てる
+                        st.session_state.show_result = True
+                        
+        if st.session_state.show_result:
+                    # 氏名の入力フィールドと証明書発行ボタンを表示
+                    st.session_state.name = st.text_input("氏名を入力してください", value=st.session_state.name)
 
         if st.button("証明書を生成"):
             name = st.text_input("氏名を入力してください")
