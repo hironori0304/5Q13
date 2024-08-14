@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import matplotlib.font_manager as fm
 import pytz
+import tempfile
 
 # クイズデータの読み込み
 def load_quiz_data(file):
@@ -133,8 +134,8 @@ def main():
             categories.insert(0, "すべて")
 
             # 過去問の回数と分野の選択
-            selected_years = st.multiselect("過去問の回数を選択してください", years)
-            selected_categories = st.multiselect("分野を選択してください", categories)
+            selected_years = st.multiselect("過去問の回数を選択してください", years, default=["すべて"])
+            selected_categories = st.multiselect("分野を選択してください", categories, default=["すべて"])
 
             if selected_years and selected_categories:
                 st.session_state.quiz_data = filter_and_sort_quiz_data(df, selected_years, selected_categories)
@@ -193,21 +194,20 @@ def main():
                             st.error("氏名を入力してください。")
 
                 # 解答結果の表示
-                    if st.session_state.show_result:
-                        st.write(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
-                        st.write(f"正答率: {st.session_state.correct_answers_count / st.session_state.total_questions * 100:.2f}%")
+                if st.session_state.show_result:
+                    st.write(f"正答数: {st.session_state.correct_answers_count} / {st.session_state.total_questions}")
+                    st.write(f"正答率: {st.session_state.correct_answers_count / st.session_state.total_questions * 100:.2f}%")
 
-                        # 不正解の問題を表示
-                        if st.session_state.incorrect_data:
-                            st.write("不正解の問題:")
-                            for i, quiz in enumerate(st.session_state.incorrect_data):
-                                st.write(f"**問題 {i+1}:** {quiz['question']}")
-                                st.write(f"正解: {quiz['correct_option']}")
-                                st.write(f"選択した解答: {st.session_state.answers[quiz['question']]}")
-
-                        # 成績証明書の表示
-                        if st.session_state.certificate_path:
-                            st.image(st.session_state.certificate_path, use_column_width=True)
+                    if st.session_state.incorrect_data:
+                        st.write("不正解の問題:")
+                        for quiz in st.session_state.incorrect_data:
+                            st.write(f"**問題:** {quiz['question']}")
+                            for i, option in enumerate(quiz["options"]):
+                                is_correct = option == quiz["correct_option"]
+                                highlight = "color: red;" if is_correct else ""
+                                st.write(f"<p style='{highlight}'>{option}</p>", unsafe_allow_html=True)
+                    else:
+                        st.write("すべての問題に正解しました！")
 
 if __name__ == "__main__":
     main()
