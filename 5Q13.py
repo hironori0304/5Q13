@@ -190,6 +190,8 @@ def main():
                             st.download_button("証明書をダウンロード", buffer, file_name="certificate.png", mime="image/png")
                         else:
                             st.error("氏名を入力してください。")
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
 
 if __name__ == "__main__":
     main()
