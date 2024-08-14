@@ -45,23 +45,20 @@ def filter_and_sort_quiz_data(df, selected_years, selected_categories):
     return quiz_data
 
 def generate_certificate(name, selected_years, selected_categories, score, total_questions):
-    # 日本時間 (Tokyo) に設定
     jst = pytz.timezone('Asia/Tokyo')
     current_datetime = datetime.now(jst).strftime("%Y年%m月%d日 %H:%M:%S")
     
     accuracy_rate = (score / total_questions) * 100
 
-    plt.figure(figsize=(5.8, 8.3))  # A5サイズに設定 (インチ)
-    plt.subplots_adjust(top=0.9)  # 上部のマージン調整
+    plt.figure(figsize=(5.8, 8.3))
+    plt.subplots_adjust(top=0.9)
 
     def wrap_text(text, width=30):
         return textwrap.fill(text, width=width)
     
-    # フォント設定（日本語対応）
-    font_path = "./msgothic.ttc"  # 使用するフォントファイルのパス
+    font_path = "./msgothic.ttc"
     font_prop = fm.FontProperties(fname=font_path)
     
-    # "証明書"を中央に配置
     plt.text(0.5, 0.95, "証明書", fontsize=20, ha='center', va='top', fontproperties=font_prop)
 
     plt.text(0.05, 0.85, wrap_text(f"氏名: {name}"), fontsize=14, ha='left', va='top', fontproperties=font_prop)
@@ -158,7 +155,8 @@ def main():
                             st.session_state.name = name
                             score = 0
                             total_questions = len(st.session_state.quiz_data)
-                            incorrect_data = []
+                            st.session_state.highlighted_questions.clear()  # ハイライトをリセット
+
                             for i, quiz in enumerate(st.session_state.current_quiz_data):
                                 correct_option = quiz["correct_option"]
                                 selected_option = st.session_state.answers.get(quiz["question"], None)
@@ -167,16 +165,13 @@ def main():
 
                                 if is_correct:
                                     score += 1
-                                    st.session_state.highlighted_questions.discard(i + 1)
                                 else:
-                                    incorrect_data.append(quiz)
-                                    st.session_state.highlighted_questions.add(i + 1)
+                                    st.session_state.highlighted_questions.add(i + 1)  # 間違った問題の番号をハイライト
 
                             accuracy_rate = (score / total_questions) * 100
                             st.write(f"あなたのスコア: {score} / {total_questions}")
                             st.write(f"正答率: {accuracy_rate:.2f}%")
 
-                            st.session_state.incorrect_data = incorrect_data
                             st.session_state.score = score
                             st.session_state.submit_count += 1
 
