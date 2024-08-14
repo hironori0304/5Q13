@@ -47,19 +47,21 @@ def filter_and_sort_quiz_data(df, selected_years, selected_categories):
 def generate_certificate(name, selected_years, selected_categories, score, total_questions):
     jst = pytz.timezone('Asia/Tokyo')
     current_datetime = datetime.now(jst).strftime("%Y年%m月%d日 %H:%M:%S")
-    
     accuracy_rate = (score / total_questions) * 100
-
-    plt.figure(figsize=(5.8, 8.3))
-    plt.subplots_adjust(top=0.9)
+    
+    # フォント設定（日本語対応）
+    font_path = "./msgothic.ttc"  # 使用するフォントファイルのパス
+    font_prop = fm.FontProperties(fname=font_path)
+    
+    # A4の半分サイズ (8.27 x 5.85 インチ)
+    plt.figure(figsize=(8.27, 5.85))
+    plt.subplots_adjust(top=0.9)  # 上部のマージン調整
 
     def wrap_text(text, width=30):
         return textwrap.fill(text, width=width)
-    
-    font_path = "./msgothic.ttc"
-    font_prop = fm.FontProperties(fname=font_path)
-    
-    plt.text(0.5, 0.95, "証明書", fontsize=20, ha='center', va='top', fontproperties=font_prop)
+
+    # "証明書"を中央に配置
+    plt.text(0.5, 0.95, "成績証明書", fontsize=24, ha='center', va='top', fontproperties=font_prop)
 
     plt.text(0.05, 0.85, wrap_text(f"氏名: {name}"), fontsize=14, ha='left', va='top', fontproperties=font_prop)
     plt.text(0.05, 0.75, wrap_text(f"日時: {current_datetime}"), fontsize=12, ha='left', va='top', fontproperties=font_prop)
@@ -67,7 +69,7 @@ def generate_certificate(name, selected_years, selected_categories, score, total
     years_str = "、".join(selected_years) if selected_years else "選択なし"
     categories_str = "、".join(selected_categories) if selected_categories else "選択なし"
     
-    plt.text(0.05, 0.65, wrap_text(f"過去問: {years_str}"), fontsize=12, ha='left', va='top', fontproperties=font_prop)
+    plt.text(0.05, 0.65, wrap_text(f"問題: {years_str}"), fontsize=12, ha='left', va='top', fontproperties=font_prop)
     plt.text(0.05, 0.55, wrap_text(f"分野: {categories_str}"), fontsize=12, ha='left', va='top', fontproperties=font_prop)
     
     plt.text(0.05, 0.45, wrap_text(f"スコア: {score} / {total_questions}"), fontsize=14, ha='left', va='top', fontproperties=font_prop)
@@ -155,8 +157,7 @@ def main():
                             st.session_state.name = name
                             score = 0
                             total_questions = len(st.session_state.quiz_data)
-                            st.session_state.highlighted_questions.clear()  # ハイライトをリセット
-
+                            incorrect_data = []
                             for i, quiz in enumerate(st.session_state.current_quiz_data):
                                 correct_option = quiz["correct_option"]
                                 selected_option = st.session_state.answers.get(quiz["question"], None)
@@ -165,13 +166,16 @@ def main():
 
                                 if is_correct:
                                     score += 1
+                                    st.session_state.highlighted_questions.discard(i + 1)
                                 else:
-                                    st.session_state.highlighted_questions.add(i + 1)  # 間違った問題の番号をハイライト
+                                    incorrect_data.append(quiz)
+                                    st.session_state.highlighted_questions.add(i + 1)
 
                             accuracy_rate = (score / total_questions) * 100
                             st.write(f"あなたのスコア: {score} / {total_questions}")
                             st.write(f"正答率: {accuracy_rate:.2f}%")
 
+                            st.session_state.incorrect_data = incorrect_data
                             st.session_state.score = score
                             st.session_state.submit_count += 1
 
@@ -183,10 +187,7 @@ def main():
                             st.image(buffer, use_column_width=True)
                             st.download_button("証明書をダウンロード", buffer, file_name="certificate.png", mime="image/png")
                         else:
-                            st.error("氏名を入力してください")
-
-        except Exception as e:
-            st.error(f"ファイルの読み込みに失敗しました: {e}")
+                            st.error("氏名を入力してください。")
 
 if __name__ == "__main__":
     main()
