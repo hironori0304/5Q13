@@ -4,7 +4,6 @@ import io
 import random
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-import japanize_matplotlib
 from io import BytesIO
 from datetime import datetime
 import pytz
