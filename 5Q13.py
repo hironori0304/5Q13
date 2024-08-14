@@ -86,6 +86,7 @@ def generate_certificate(name, selected_years, selected_categories, score, total
 def main():
     st.title("国家試験対策アプリ")
 
+    # セッションステートの初期化
     if "quiz_data" not in st.session_state:
         st.session_state.quiz_data = []
     if "current_quiz_data" not in st.session_state:
@@ -105,6 +106,7 @@ def main():
     if "name" not in st.session_state:
         st.session_state.name = ""
 
+    # ファイルアップローダー
     uploaded_file = st.file_uploader("問題データのCSVファイルをアップロードしてください", type="csv")
     if uploaded_file is not None:
         try:
